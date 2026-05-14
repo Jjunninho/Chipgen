@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHIP·GEN — Gerador de Música de Videogame</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .btn.pause{ border-color:var(--cy); color:var(--cy); }
+  .btn.pause:hover{ background:rgba(0,255,255,.08); box-shadow:0 0 10px rgba(0,255,255,.25); }
+  .btn.pause.paused{ background:rgba(0,255,255,.15); border-color:var(--cy); box-shadow:0 0 14px rgba(0,255,255,.4); animation:pauseGlow .8s infinite alternate; }
+  @keyframes pauseGlow{ from{box-shadow:0 0 8px rgba(0,255,255,.3)} to{box-shadow:0 0 18px rgba(0,255,255,.7)} }
+</style>
+<!-- Magenta.js (requer servidor HTTP) -->
+<script src="js/magentamusic.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>⚡ CHIP·GEN ⚡</h1>
+  <div class="sub">▸ GERADOR PROCEDURAL DE MÚSICA DE VIDEOGAME ◂</div>
+</header>
+
+<!-- ── CONFIGURAÇÃO - MODO PROCEDURAL ── -->
+<div class="panel">
+  <div class="pt">▶ MODO PROCEDURAL</div>
+  <div class="cg">
+    <div class="ctrl">
+      <label>ESTILO / PRESET</label>
+      <select id="presetSel"></select>
+    </div>
+    <div class="ctrl">
+      <label>TONALIDADE (KEY)</label>
+      <select id="keySel"></select>
+    </div>
+    <div class="ctrl">
+      <label>ESCALA</label>
+      <select id="scaleSel"></select>
+    </div>
+    <div class="ctrl">
+      <label>BPM: <span id="bpmVal">160</span></label>
+      <input type="range" id="bpmSlider" min="60" max="240" value="160">
+    </div>
+    <div class="ctrl">
+      <label>COMPASSOS (BARS)</label>
+      <select id="barsSel">
+        <option value="4">4</option>
+        <option value="8" selected>8</option>
+        <option value="16">16</option>
+        <option value="32">32</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label>ESTILO MUSICAL</label>
+      <select id="styleSel"></select>
+    </div>
+    <div class="ctrl">
+      <label>GROOVE / BATERIA</label>
+      <select id="drumStyleSel"></select>
+    </div>
+    <div class="ctrl">
+      <label>VARIAÇÃO SEED: <span id="seedVal">42</span>
+        <span style="float:right;display:flex;align-items:center;gap:4px;">
+          <input type="checkbox" id="seedLock" style="accent-color:var(--am);cursor:pointer;width:12px;height:12px;">
+          <span style="color:var(--am);font-size:6px;">FIXAR</span>
+        </span>
+      </label>
+      <input type="range" id="seedSlider" min="0" max="9999" value="42">
+    </div>
+  </div>
+
+  <div class="pt">▶ CONTROLES</div>
+
+  <div class="tracks" id="tracksRow">
+    <div class="toggle toggle-melody active" data-track="melody">
+      <div class="dot" style="background:#00ff41"></div> MELODY
+    </div>
+    <div class="toggle toggle-bass active" data-track="bass">
+      <div class="dot" style="background:#ffb000"></div> BASS
+    </div>
+    <div class="toggle toggle-arp active" data-track="arp">
+      <div class="dot" style="background:#00ffff"></div> ARP
+    </div>
+    <div class="toggle toggle-drums active" data-track="drums">
+      <div class="dot" style="background:#ff3300"></div> DRUMS
+    </div>
+  </div>
+  
+  <div class="brow">
+    <button class="btn primary" id="genBtn">🎲 GERAR</button>
+    <button class="btn rnd"     id="randomBtn">🎰 ALEATÓRIO</button>
+
+  </div>
+
+  <div class="tracks" id="tracksRow2">
+    <div class="status">
+      <div class="led" id="playLed"></div>
+      <div class="beat" id="beatDisp">BAR — BEAT —</div>
+      <div class="info">KEY: <span id="infoKey">—</span></div>
+      <div class="info">SCALE: <span id="infoScale">—</span></div>
+      <div class="info">BPM: <span id="infoBpm">—</span></div>
+      <div class="info">SEED: <span id="infoSeed">—</span></div>
+      <div class="info">NOTAS: <span id="infoNotes">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ▶ MODO EMOCIONAL — Russell Circumplex Model
+     ══════════════════════════════════════════════════════════════ -->
+<div class="panel emotion-panel">
+  <div class="pt">▶ 🎭 MODO EMOCIONAL · RUSSELL CIRCUMPLEX</div>
+
+  <!-- Sliders de eixo -->
+  <div class="cg" style="margin-bottom:14px;">
+    <div class="ctrl">
+      <label>
+        VALÊNCIA:
+        <span id="valenceVal" style="color:var(--g);">+0.70</span>
+      </label>
+      <input type="range" id="valenceSlider" min="-100" max="100" value="70" step="1">
+      <div class="emo-axis-labels">
+        <span>😢 NEGATIVO</span>
+        <span>😐 NEUTRO</span>
+        <span>😊 POSITIVO</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <label>
+        AROUSAL (ENERGIA):
+        <span id="arousalVal" style="color:var(--g);">0.80</span>
+      </label>
+      <input type="range" id="arousalSlider" min="0" max="100" value="80" step="1">
+      <div class="emo-axis-labels">
+        <span>🧊 CALMO</span>
+        <span>━ MÉDIO</span>
+        <span>🔥 INTENSO</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rótulo emocional atual + parâmetros mapeados -->
+  <div class="emo-state-row">
+    <div class="emo-label" id="emotionLabel">🔥 EUPHORIC</div>
+    <div class="emo-params" id="emotionParams">
+      <span class="ep-item">BPM <span id="epBpm">—</span></span>
+      <span class="ep-item">ESCALA <span id="epScale">—</span></span>
+      <span class="ep-item">ESTILO <span id="epStyle">—</span></span>
+      <span class="ep-item">DRUMS <span id="epDrums">—</span></span>
+      <span class="ep-item">TENSÃO <span id="epTension">—</span></span>
+      <span class="ep-item">KEY <span id="epKey">—</span></span>
+    </div>
+  </div>
+
+  <!-- Grade de emoções predefinidas -->
+  <div class="emo-grid-label">▸ EMOÇÕES RÁPIDAS</div>
+  <div class="emo-grid" id="emotionGrid">
+    <!-- preenchido por buildEmotionPanel() em ui.js -->
+  </div>
+
+  <!-- Botões -->
+  <div class="brow" style="margin-top:14px;">
+    <button class="btn emo-gen-btn" id="emotionGenBtn">🎭 GERAR EMOCIONAL</button>
+    <button class="btn emo-rnd-btn" id="emotionRndBtn">🎲 EMOÇÃO ALEATÓRIA</button>
+    <button class="btn emo-hum-btn" id="humanizeBtn" title="Aplica microvariações de timing e velocity para soar mais humano">
+      🎻 HUMANIZAR: <span id="humanizeStatus">OFF</span>
+    </button>
+  </div>
+
+  <!-- Indicador de humanização ativa -->
+  <div id="humanizeInfo" style="display:none; font-size:6px; color:var(--am); letter-spacing:1px; margin-top:4px;">
+    ▸ HUMANIZAÇÃO ATIVA — amount: <span id="humanizeAmountDisp">—</span>
+    &nbsp;|&nbsp; baixo arousal = mais expressivo · alto arousal = mais mecânico
+  </div>
+  
+	<div style="display:flex; gap:12px; margin-left:auto; padding-left:12px; border-left:1px solid #442200; flex-wrap: wrap;">
+      <div class="ctrl" style="flex-direction:row; align-items:center; gap:6px;">
+        <label style="margin:0; font-size:7px;">DURAÇÃO(s):</label>
+        <input type="number" id="emoDuration" min="1" max="600" style="width:58px; text-align:center;">
+      </div>
+      <div class="ctrl" style="flex-direction:row; align-items:center; gap:6px;">
+        <label style="margin:0; font-size:7px;">BPM:</label>
+        <input type="number" id="emoBpm" min="40" max="240" style="width:58px; text-align:center;">
+      </div>
+      <div class="ctrl" style="flex-direction:row; align-items:center; gap:6px;">
+        <label style="margin:0; font-size:7px;">COMPASSOS:</label>
+        <input type="number" id="emoBars" value="8" min="1" max="200" style="width:58px; text-align:center;">
+      </div>
+    </div>
+
+  <!-- Info de quadrante -->
+  <div class="emo-quadrant-info" id="emoQuadrantInfo">
+    Ajuste VALÊNCIA e AROUSAL ou escolha uma emoção na grade acima.
+  </div>
+</div>
+<!-- ── PIANO ROLL ── -->
+<div class="panel">
+  <div class="pt">▶ PIANO ROLL</div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#00ff41"></div>MELODY</div>
+    <div class="leg"><div class="leg-dot" style="background:#ffb000"></div>BASS</div>
+    <div class="leg"><div class="leg-dot" style="background:#00ffff"></div>ARP</div>
+    <div class="leg"><div class="leg-dot" style="background:#ff3300"></div>DRUMS</div>
+    <div class="leg"><div class="leg-dot" style="background:#ff88ff"></div>COUNTER</div>
+  </div>
+  <canvas id="roll" height="260"></canvas>
+  <!-- ── SEEK BAR ── -->
+  <div class="seekbar-wrap">
+    <span class="seekbar-label" id="seekCurrent">00:00</span>
+    <div class="seekbar-track" id="seekTrack">
+      <div class="seekbar-fill" id="seekFill"></div>
+      <div class="seekbar-thumb" id="seekThumb"></div>
+    </div>
+    <span class="seekbar-label" id="seekTotal">00:00</span>
+  </div>
+    <!-- ── CONTROLES DE PLAYBACK ── -->
+<input type="file" id="midiInput" accept=".mid,.midi" style="display:none;">
+  <div class="brow" style="margin-top:10px; align-items: center;">
+    <button class="btn" id="loadMidiBtn">📂 ABRIR .MID</button>
+    <button class="btn" id="editBtn" onclick="openEditor()" style="border-color:#cc44ff;color:#cc44ff">✏️ EDITAR</button>
+    <button class="btn" id="playBtn" disabled>▶ PLAY</button>
+    <button class="btn pause" id="pauseBtn" disabled>⏸ PAUSE</button>
+    <button class="btn stop" id="stopBtn" disabled>■ STOP</button>
+    <button class="btn dl" id="midiBtn" disabled>💾 SALVAR .MID</button>
+    <button class="btn" id="loopInfiniteBtn" onclick="toggleInfinite()" title="Loop Infinito Evolutivo — gera música contínua sem repetir">∞ LOOP</button>
+
+    <div style="display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:12px; border-left:1px solid var(--gd);">
+      <label style="margin:0; font-size:7px; color:var(--g);">SEED:</label>
+      <input type="number" id="manualSeedInput" min="0" max="9999" value="42" style="width:58px; text-align:center; background:#001500; border:1px solid var(--gd); color:var(--g); font-family:'Press Start 2P',monospace; font-size:8px; padding:6px; border-radius:2px; outline:none;">
+      <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
+        <input type="checkbox" id="manualSeedLock" style="accent-color:var(--am); width:12px; height:12px; cursor:pointer;">
+        <span style="color:var(--am); font-size:6px;">FIXAR</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ── ANALISADOR EM TEMPO REAL ── -->
+  <div class="analyzer-section">
+    <div class="emo-grid-label" style="margin-bottom:10px;">▸ ANÁLISE EMOCIONAL EM TEMPO REAL</div>
+    <div class="analyzer-layout">
+
+      <!-- Canvas do circumplex -->
+      <div class="circumplex-wrap">
+        <canvas id="circomplexCanvas" width="220" height="180"></canvas>
+        <div class="circumplex-legend">
+          <span class="cx-leg cx-leg-target">● ALVO</span>
+          <span class="cx-leg cx-leg-measured">● REAL</span>
+        </div>
+      </div>
+
+      <!-- Métricas textuais -->
+      <div class="analyzer-metrics">
+        <div class="am-row">
+          <span class="am-label">EMOÇÃO MEDIDA</span>
+          <span class="am-value" id="analyzerMeasuredLabel">—</span>
+        </div>
+        <div class="am-row">
+          <span class="am-label">DESVIO DO ALVO</span>
+          <span class="am-value" id="analyzerErrorDisp">—</span>
+        </div>
+        <div class="am-row">
+          <span class="am-label">ENERGIA (RMS×1k)</span>
+          <span class="am-value" id="analyzerRmsDisp">—</span>
+        </div>
+        <div class="am-row" style="margin-top:10px; font-size:6px; color:#444; line-height:1.8;">
+          <span>🟢 Verde = emoção alvo (seus sliders)</span><br>
+          <span>🟡 Âmbar = emoção medida do áudio</span><br>
+          <span>Desvio &lt;15% = ótimo · &lt;35% = bom</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="analyzer-status" id="analyzerStatus">
+      ▸ Toque uma música para iniciar a análise em tempo real.
+    </div>
+  </div>
+  <!-- /ANALISADOR -->
+</div>
+<!-- /MODO EMOCIONAL -->
+
+	<div class="panel">
+	  <div class="pt">▶ 🤖 MAGENTA IA</div>
+
+	  <div style="margin-bottom:12px;">
+		<span class="mg-opt active" data-mg="melody">🎵 MELODIA</span>
+		<span class="mg-opt" data-mg="drums">🥁 BATERIA</span>
+	  </div>
+
+	  <div class="cg" id="mgModelWrap" style="margin-bottom:12px;">
+		<div class="ctrl">
+		  <label>MODELO RNN</label>
+		  <select id="mgModelSel">
+			<option value="basic_rnn">⚡ BASIC (rápido)</option>
+			<option value="melody_rnn">🎵 MELODY (equilibrado)</option>
+			<option value="chord_pitches_improv">🧠 IMPROV (qualidade máxima)</option>
+		  </select>
+		</div>
+	  </div>
+
+	  <div class="cg" style="margin-bottom:12px;">
+		<div class="ctrl">
+		  <label>TEMPERATURA <span id="mgTempVal">1.0</span></label>
+		  <input type="range" id="mgTemp" min="0.1" max="1.5" step="0.05" value="1.0">
+		</div>
+	  </div>
+
+	  <div class="brow">
+		<button class="btn magenta" id="mgLoadBtn">⚡ CARREGAR IA</button>
+		<button class="btn magenta" id="mgGenBtn"  disabled>🎲 GERAR TRECHO COM IA</button>
+		<button class="btn"         id="mgPlayBtn" disabled>▶ PLAY IA</button>
+		<button class="btn stop"    id="mgStopBtn" disabled>■ STOP IA</button>
+		<button class="btn dl"      id="mgMidiBtn" disabled>💾 SALVAR .MID</button>
+	  </div>
+	  <div class="mg-bar" id="mgBar"><div class="mg-bar-fill" id="mgBarFill"></div></div>
+	  <div class="mg-status" id="mgStatus">▸ Clique em CARREGAR IA para inicializar o modelo.</div>
+	</div>
+	<div class="panel">
+	  <div class="pt">▶ CÓDIGO PARA RECRIAR A MÚSICA</div>
+	  <div class="brow">
+		<button class="btn code" id="codeBtn" disabled>{ } GERAR CÓDIGO PYTHON</button>
+	  </div>
+	  <div id="codeWrap" class="code-wrap">
+		<button class="btn code" id="copyBtn">📋 COPIAR CÓDIGO</button>
+		<div class="copy-ok" id="copyOk">✅ COPIADO!</div>
+		<div id="codeOut"></div>
+	  </div>
+	  <div id="codePlaceholder" style="color:var(--gd);font-size:8px;">
+		Gere uma música primeiro, depois clique em "CÓDIGO PYTHON".
+	  </div>
+	</div>
+	</div>
+
+<!-- Final do código HTML -->
+
+<!--
+  ═══════════════════════════════════════════════════
+  ORDEM DE CARREGAMENTO DOS MÓDULOS
+  ─────────────────────────────────────────────────
+  1. theory.js        → escalas, presets, geração de notas
+  2. theory_russel.js → camada emocional (Russell Circumplex)
+  3. audio.js         → engine Web Audio (síntese chiptune)
+  4. player.js        → playback MIDI importado
+  5. pianoroll.js     → visualização canvas
+  6. midi.js          → exportação MIDI + código Python
+  7. ui.js            → estado global + eventos da interface
+  8. magenta.js       → integração IA
+  ═══════════════════════════════════════════════════
+-->
+<script src="https://unpkg.com/@tonejs/midi"></script>
+<script src="js/theory.js"></script>
+<script src="js/theory_russel.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/analyzer.js"></script>
+<script src="js/player.js"></script>
+<script src="js/pianoroll.js"></script>
+<script src="js/midi.js"></script>
+<script src="js/ui.js"></script>
+<script>
+function openEditor(){
+  if(!currentSong){ alert('Gere uma música primeiro!'); return; }
+  try {
+    localStorage.setItem('chipgen_import', JSON.stringify({
+      song: currentSong, bpm: cfg.bpm, bars: cfg.bars
+    }));
+    window.open('editor.html', '_blank');
+  } catch(err){ alert('Erro: '+err.message); }
+}
+
+window.addEventListener('focus', () => {
+  try {
+    const saved = localStorage.getItem('chipgen_import');
+    if(saved){
+      const data = JSON.parse(saved);
+      if(!data.song) return;
+      stopAll(); stopMidiPlayer();
+      currentSong = data.song;
+      isImportedSong = false;
+      if(data.bpm){ cfg.bpm=data.bpm; document.getElementById('bpmSlider').value=data.bpm; document.getElementById('bpmVal').textContent=data.bpm; }
+      if(data.bars){ cfg.bars=data.bars; document.getElementById('barsSel').value=data.bars; }
+      const canvas=document.getElementById('roll');
+      canvas.width=canvas.offsetWidth||900;
+      drawRoll(currentSong);
+      const total=Object.values(currentSong).flat().length;
+      document.getElementById('infoNotes').textContent=total;
+      document.getElementById('infoBpm').textContent=cfg.bpm;
+      document.getElementById('infoKey').textContent='EDIT';
+      document.getElementById('infoScale').textContent='EDITOR';
+      document.getElementById('playBtn').disabled=false;
+      document.getElementById('midiBtn').disabled=false;
+      document.getElementById('codeBtn').disabled=false;
+      updatePlayUI();
+      localStorage.removeItem('chipgen_import');
+    }
+  } catch(err){}
+});
+</script>
+<script src="js/magenta.js"></script>
+</html>
